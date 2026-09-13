@@ -13,7 +13,8 @@
 </head>
 <body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-start sm:items-center justify-center p-4 transition-colors">
     <div id="app" class="w-full max-w-xl bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-black/40 p-6 transition-colors">
-        <!-- Заголовок + тема -->
+        <template v-if="user">
+        <!-- Заголовок + пользователь + тема -->
         <div class="flex items-center justify-between mb-6">
             <div class="flex items-center min-w-0">
             <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">📝 TODO List</h1>
@@ -23,8 +24,15 @@
                 class="ml-2 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-semibold whitespace-nowrap"
             >✓ {{ doneCount }}</span>
             </div>
-            <button
-                @click="toggleTheme"
+            <div class="flex items-center gap-2 shrink-0">
+                <span class="text-sm text-gray-500 dark:text-gray-400 truncate max-w-24" :title="user.username">{{ user.username }}</span>
+                <button
+                    @click="logout"
+                    class="text-sm text-gray-500 dark:text-gray-400 hover:text-red-500 transition-colors"
+                    title="Выйти"
+                >Выйти</button>
+                <button
+                    @click="toggleTheme"
                 :title="dark ? 'Светлая тема' : 'Тёмная тема'"
                 class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-lg transition-colors flex items-center justify-center"
             >
@@ -158,6 +166,47 @@
                 Удалить выполненные
             </button>
         </div>
+        </template>
+
+        <!-- Экран входа / регистрации -->
+        <template v-else>
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100 text-center mb-6">📝 TODO List</h1>
+            <form @submit.prevent="submitAuth" class="space-y-4">
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-1">Имя</label>
+                    <input
+                        v-model="authUsername"
+                        type="text"
+                        maxlength="32"
+                        autocomplete="username"
+                        class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Ваше имя"
+                    />
+                </div>
+                <div>
+                    <label class="block text-sm text-gray-600 dark:text-gray-300 mb-1">Пароль</label>
+                    <input
+                        v-model="authPassword"
+                        type="password"
+                        autocomplete="current-password"
+                        class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        placeholder="Пароль (минимум 4 символа)"
+                    />
+                </div>
+                <p v-if="authError" class="text-sm text-red-500">{{ authError }}</p>
+                <button
+                    type="submit"
+                    :disabled="authLoading"
+                    class="w-full py-2.5 rounded-lg bg-blue-500 hover:bg-blue-600 text-white font-semibold transition-colors disabled:opacity-50"
+                >
+                    {{ authMode === 'login' ? 'Войти' : 'Зарегистрироваться' }}
+                </button>
+            </form>
+            <p class="text-center text-sm text-gray-500 dark:text-gray-400 mt-4">
+                {{ authMode === 'login' ? 'Нет аккаунта?' : 'Уже есть аккаунт?' }}
+                <button @click="switchAuthMode" class="text-blue-500 hover:underline">{{ authMode === 'login' ? 'Зарегистрироваться' : 'Войти' }}</button>
+            </p>
+        </template>
     </div>
 
     <script>
@@ -177,6 +226,14 @@
                 const dark = ref(localStorage.getItem(THEME_KEY) === 'dark');
                 const loading = ref(false);
                 const error = ref('');
+
+                // ---------- Авторизация ----------
+                const user = ref(null);
+                const authMode = ref('login');
+                const authUsername = ref('');
+                const authPassword = ref('');
+                const authError = ref('');
+                const authLoading = ref(false);
 
                 // drag & drop
                 const dragId = ref(null);
@@ -218,7 +275,14 @@
                             body: body ? JSON.stringify(body) : undefined,
                         });
                         const data = await res.json().catch(() => ({}));
-                        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+                        if (!res.ok) {
+                            // сессия истекла/отсутствует — показать экран входа
+                            if (res.status === 401 && url.startsWith('/api/todos')) {
+                                user.value = null;
+                                authError.value = '';
+                            }
+                            throw new Error(data.error || ('HTTP ' + res.status));
+                        }
                         return data;
                     } catch (e) {
                         error.value = 'Ошибка связи с сервером: ' + e.message;
@@ -231,7 +295,56 @@
                 async function loadTodos() {
                     try { todos.value = await api('GET', API); } catch { /* ошибка уже показана */ }
                 }
-                onMounted(loadTodos);
+                onMounted(async () => {
+                    try {
+                        const res = await fetch('/api/me');
+                        if (res.ok) {
+                            user.value = await res.json();
+                            await loadTodos();
+                        }
+                    } catch { /* экран входа */ }
+                });
+
+                function switchAuthMode() {
+                    authMode.value = authMode.value === 'login' ? 'register' : 'login';
+                    authError.value = '';
+                }
+
+                async function submitAuth() {
+                    authError.value = '';
+                    const username = authUsername.value.trim();
+                    const password = authPassword.value;
+                    if (!username) { authError.value = 'Введите имя'; return; }
+                    if (password.length < 4) { authError.value = 'Пароль должен быть не короче 4 символов'; return; }
+                    authLoading.value = true;
+                    try {
+                        const res = await fetch(authMode.value === 'login' ? '/api/login' : '/api/register', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ username, password }),
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) { authError.value = data.error || ('Ошибка ' + res.status); return; }
+                        user.value = data;
+                        authUsername.value = '';
+                        authPassword.value = '';
+                        await loadTodos();
+                    } catch {
+                        authError.value = 'Ошибка связи с сервером';
+                    } finally {
+                        authLoading.value = false;
+                    }
+                }
+
+                async function logout() {
+                    try { await fetch('/api/logout', { method: 'POST' }); } catch { /* игнорируем */ }
+                    user.value = null;
+                    todos.value = [];
+                    filter.value = 'all';
+                    sortBy.value = '';
+                    authMode.value = 'login';
+                    error.value = '';
+                }
 
                 // ---------- Дедлайны ----------
                 function daysLeft(todo) {
@@ -351,6 +464,8 @@
                 return {
                     todos, newTodo, newPriority, newDue, filter, sortBy, filters, dark,
                     dragId, dragOverId, loading, error,
+                    user, authMode, authUsername, authPassword, authError, authLoading,
+                    switchAuthMode, submitAuth, logout,
                     visibleTodos, activeCount, doneCount, hasCompleted, counterText,
                     toggleTheme,
                     priorityLabel: p => PRIORITY_LABELS[p] || p,

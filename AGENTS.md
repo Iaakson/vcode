@@ -8,6 +8,8 @@
 ### Функционал
 
 - **Список задач (TODO):** добавление, отметка выполнения, удаление задач, удаление всех выполненных (`clearCompleted`)
+- **Регистрация и авторизация:** каждый пользователь имеет свой список задач; вход/регистрация по имени и паролю, сессия в httpOnly cookie (30 дней); выход; неавторизованный доступ к API — 401
+- **Миграция данных:** существующие общие задачи закреплены за пользователем `admin` (пароль — переменная окружения `ADMIN_PASSWORD`, по умолчанию `admin123`)
 - **Фильтрация и сортировка:** фильтры по статусу, сортировка по приоритету и дедлайну
 - **Drag & Drop:** перетаскивание задач для изменения порядка (сохраняется в БД через `POST /api/todos/reorder`)
 - **Тёмная тема** с переключением (сохраняется в localStorage — единственное, что хранится на клиенте)
@@ -50,7 +52,11 @@ vcode/
 ### API
 
 ```
-GET    /api/todos          — список задач
+POST   /api/register      — регистрация {username, password} → {id, username} + cookie
+POST   /api/login         — вход {username, password} → {id, username} + cookie
+POST   /api/logout        — выход, сессия удалена
+GET    /api/me            — текущий пользователь | 401
+GET    /api/todos          — список задач текущего пользователя (401 без сессии)
 POST   /api/todos          — создать {text, priority, due}
 PATCH  /api/todos/:id      — обновить {done?, text?, priority?, due?}
 DELETE /api/todos/:id      — удалить задачу
@@ -58,7 +64,7 @@ DELETE /api/todos          — удалить все выполненные
 POST   /api/todos/reorder  — новый порядок {ids: [id, ...]}
 ```
 
-Таблица БД `todos`: `id, text, done, priority, due, position, created_at`.
+Таблицы БД: `todos` (id, text, done, priority, due, position, created_at, **user_id**) — задачи привязаны к пользователю; `users` (id, username UNIQUE, password_hash, salt, created_at); `sessions` (token, user_id, created_at, expires_at). Миграция user_id идемпотентная (ALTER TABLE при старте). Пароли — scrypt (node:crypto), без npm-зависимостей.
 
 ### Локальный запуск
 
@@ -136,6 +142,7 @@ ssh root@31.76.41.104 "cd /opt/vcode && docker compose up -d --build"
 - Весь фронтенд — один файл `apps/frontend/index.html`; правки UI делаются только там, пересборка не нужна.
 - Все данные задач — через API (`/api/todos`); в localStorage хранится только тема.
 - После правок `server.js` или `index.html` обязательно запустить `./deploy.sh`.
+- **Прод-пароль admin:** задаётся переменной `ADMIN_PASSWORD` в docker-compose.yml/окружении (по умолчанию `admin123`) — сообщить пользователю после деплоя.
 - При изменении портa/путей БД — править и `Dockerfile`/`docker-compose.yml`, и пере-деплоить.
 - Устаревшие файлы удалены: корневые `index.html`/`server.js` (v1), `deploy/vcode-service.xml`; `deploy/vcode.service` оставлен как референс systemd-варианта (прод теперь в docker).
 - На локальном ПК ранее существовала Windows-служба `vcode` со старым server.js — она остановлена и удалена, порт 3000 свободен для dev-сервера frontend.

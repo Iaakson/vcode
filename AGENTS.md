@@ -71,6 +71,11 @@ npm run dev:frontend # UI на http://localhost:3000 (проксирует /api 
 
 Локальная БД: `apps/backend/data/todos.db` (в `.gitignore`). Порт 3000 должен быть свободен.
 
+### Git
+
+- **Репозиторий:** `git@github.com:Iaakson/vcode.git` (ветка `main`)
+- Рабочий процесс: правки → коммит → пуш; деплой не зависит от git (исходники отправляются scp из рабочей директории через `./deploy.sh`)
+
 ---
 
 ## Где запущен проект (продакшен)
@@ -130,4 +135,6 @@ ssh root@31.76.41.104 "cd /opt/vcode && docker compose up -d --build"
 - Все данные задач — через API (`/api/todos`); в localStorage хранится только тема.
 - После правок `server.js` или `index.html` обязательно запустить `./deploy.sh`.
 - При изменении портa/путей БД — править и `Dockerfile`/`docker-compose.yml`, и пере-деплоить.
-- Устаревшие файлы удалены: корневые `index.html`/`server.js` (v1), `deploy/vcode.service`, `deploy/vcode-service.xml` (старый systemd/WinSW вариант — прод теперь в docker).
+- Устаревшие файлы удалены: корневые `index.html`/`server.js` (v1), `deploy/vcode-service.xml`; `deploy/vcode.service` оставлен как референс systemd-варианта (прод теперь в docker).
+- На локальном ПК ранее существовала Windows-служба `vcode` со старым server.js — она остановлена и удалена, порт 3000 свободен для dev-сервера frontend.
+- `.dockerignore` исключает `*.md`, `deploy.sh`, `.git`, `.pi`, `node_modules` — в образ попадают только `apps/`.

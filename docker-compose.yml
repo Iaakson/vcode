@@ -1,0 +1,27 @@
+# Продакшен: один docker-образ (backend на /api + frontend на /)
+# SQLite подключена как volume — данные переживают пересоздание контейнера.
+# Запуск: docker compose up -d --build
+
+services:
+  vcode:
+    build: .
+    image: vcode-todo:latest
+    container_name: vcode-todo
+    ports:
+      - "3000:3000"
+    volumes:
+      - sqlite_data:/data
+    environment:
+      PORT: "3000"
+      HOST: "0.0.0.0"
+      SERVE_STATIC: "1"
+      DB_PATH: /data/todos.db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/todos"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  sqlite_data:

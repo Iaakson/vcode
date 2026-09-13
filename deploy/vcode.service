@@ -9,11 +9,13 @@ User=deploy
 WorkingDirectory=/opt/vcode
 # Порт 3000 требует прав — используется node с capabilities на bind <1024,
 # поэтому сервис запускается с флагом AmbientCapabilities
-ExecStart=/usr/bin/node /opt/vcode/server.js
+ExecStart=/usr/bin/node /opt/vcode/apps/backend/server.js
 Restart=always
 RestartSec=5
 Environment=PORT=3000
 Environment=HOST=0.0.0.0
+Environment=SERVE_STATIC=1
+Environment=DB_PATH=/opt/vcode/data/todos.db
 AmbientCapabilities=CAP_NET_BIND_SERVICE
 CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 

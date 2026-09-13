@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TODO List</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        // Тёмная тема по классу на <html>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
+</head>
+<body class="bg-gray-100 dark:bg-gray-900 min-h-screen flex items-start sm:items-center justify-center p-4 transition-colors">
+    <div id="app" class="w-full max-w-xl bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-black/40 p-6 transition-colors">
+        <!-- Заголовок + тема -->
+        <div class="flex items-center justify-between mb-6">
+            <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">📝 TODO List</h1>
+            <button
+                @click="toggleTheme"
+                :title="dark ? 'Светлая тема' : 'Тёмная тема'"
+                class="w-10 h-10 rounded-full bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-lg transition-colors flex items-center justify-center"
+            >
+                {{ dark ? '☀️' : '🌙' }}
+            </button>
+        </div>
+
+        <!-- Ошибка API -->
+        <p v-if="error" class="mb-4 text-sm text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-lg px-4 py-2">
+            ⚠️ {{ error }}
+        </p>
+
+        <!-- Форма добавления -->
+        <form @submit.prevent="addTodo" class="flex flex-wrap gap-2 mb-4">
+            <input
+                type="text"
+                v-model="newTodo"
+                placeholder="Что нужно сделать?"
+                autocomplete="off"
+                class="flex-1 min-w-[12rem] border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-4 py-2 placeholder-gray-400 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent"
+            >
+            <select
+                v-model="newPriority"
+                class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400"
+            >
+                <option value="low">🟢 Низкий</option>
+                <option value="medium">🟡 Средний</option>
+                <option value="high">🔴 Высокий</option>
+            </select>
+            <input
+                type="date"
+                v-model="newDue"
+                class="border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 rounded-lg px-2 py-2 focus:outline-none focus:ring-2 focus:ring-blue-400 [color-scheme:light] dark:[color-scheme:dark]"
+            >
+            <button
+                type="submit"
+                :disabled="loading"
+                class="bg-blue-500 hover:bg-blue-600 active:bg-blue-700 disabled:opacity-50 text-white font-semibold px-5 py-2 rounded-lg transition-colors"
+            >
+                Добавить
+            </button>
+        </form>
+
+        <!-- Фильтры и сортировка -->
+        <div class="flex flex-wrap items-center gap-2 mb-4 text-sm">
+            <button
+                v-for="f in filters"
+                :key="f.value"
+                @click="filter = f.value"
+                :class="['px-3 py-1.5 rounded-full font-medium transition-colors',
+                    filter === f.value ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600']"
+            >
+                {{ f.label }}
+            </button>
+            <span class="mx-1 text-gray-300 dark:text-gray-600">|</span>
+            <button
+                @click="sortBy = sortBy === 'priority' ? '' : 'priority'"
+                :class="['px-3 py-1.5 rounded-full font-medium transition-colors',
+                    sortBy === 'priority' ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600']"
+                title="Сортировать по приоритету"
+            >
+                ⬆️ Приоритет
+            </button>
+            <button
+                @click="sortBy = sortBy === 'due' ? '' : 'due'"
+                :class="['px-3 py-1.5 rounded-full font-medium transition-colors',
+                    sortBy === 'due' ? 'bg-purple-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600']"
+                title="Сортировать по дедлайну"
+            >
+                📅 Дедлайн
+            </button>
+        </div>
+
+        <!-- Список -->
+        <ul class="space-y-2">
+            <li
+                v-for="todo in visibleTodos"
+                :key="todo.id"
+                draggable="true"
+                @dragstart="onDragStart(todo, $event)"
+                @dragover.prevent
+                @drop="onDrop(todo)"
+                :class="['flex items-start gap-3 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-lg px-4 py-3 group cursor-grab active:cursor-grabbing transition-colors select-none',
+                    todo.done ? 'opacity-60' : '',
+                    dragId === todo.id ? 'opacity-40' : '',
+                    dragOverId === todo.id && dragId !== todo.id ? 'ring-2 ring-blue-400' : '']"
+            >
+                <span class="text-gray-300 dark:text-gray-500 mt-1 shrink-0" title="Перетащите">⠿</span>
+                <input
+                    type="checkbox"
+                    :checked="todo.done"
+                    @change="toggleTodo(todo)"
+                    class="w-5 h-5 mt-0.5 accent-blue-500 cursor-pointer shrink-0"
+                >
+                <div class="flex-1 min-w-0">
+                    <span :class="['break-words', todo.done ? 'line-through text-gray-400 dark:text-gray-500' : 'text-gray-800 dark:text-gray-100']">
+                        {{ todo.text }}
+                    </span>
+                    <div class="flex flex-wrap items-center gap-1.5 mt-1.5">
+                        <!-- Приоритет -->
+                        <span :class="['text-xs px-2 py-0.5 rounded-full font-medium', priorityClass(todo.priority)]">
+                            {{ priorityLabel(todo.priority) }}
+                        </span>
+                        <!-- Дедлайн -->
+                        <span v-if="todo.due" :class="['text-xs px-2 py-0.5 rounded-full font-medium', dueClass(todo)]">
+                            📅 {{ dueText(todo) }}
+                        </span>
+                    </div>
+                </div>
+                <button
+                    @click="removeTodo(todo.id)"
+                    class="text-gray-300 dark:text-gray-500 hover:text-red-500 transition-colors shrink-0 mt-0.5"
+                    title="Удалить"
+                >
+                    ✕
+                </button>
+            </li>
+        </ul>
+
+        <!-- Пустое состояние -->
+        <p v-if="visibleTodos.length === 0" class="text-center text-gray-400 dark:text-gray-500 py-8">Пока ничего нет 🌱</p>
+
+        <!-- Нижняя панель -->
+        <div class="flex justify-between items-center mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-300">
+            <span>{{ counterText }}</span>
+            <button
+                @click="clearCompleted"
+                :disabled="!hasCompleted || loading"
+                class="text-red-500 hover:text-red-600 hover:underline disabled:opacity-40 disabled:no-underline"
+            >
+                Удалить выполненные
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const THEME_KEY = 'theme';
+        const API = '/api/todos';
+        const { createApp, ref, computed, onMounted } = Vue;
+
+        createApp({
+            setup() {
+                // ---------- Состояние ----------
+                const todos = ref([]);
+                const newTodo = ref('');
+                const newPriority = ref('medium');
+                const newDue = ref('');
+                const filter = ref('all');
+                const sortBy = ref('');
+                const dark = ref(localStorage.getItem(THEME_KEY) === 'dark');
+                const loading = ref(false);
+                const error = ref('');
+
+                // drag & drop
+                const dragId = ref(null);
+                const dragOverId = ref(null);
+
+                const filters = [
+                    { value: 'all', label: 'Все' },
+                    { value: 'active', label: 'Активные' },
+                    { value: 'completed', label: 'Выполненные' },
+                ];
+
+                const PRIORITY_LABELS = { low: '🟢 Низкий', medium: '🟡 Средний', high: '🔴 Высокий' };
+                const PRIORITY_ORDER = { high: 0, medium: 1, low: 2 };
+                const PRIORITY_CLASSES = {
+                    low: 'bg-green-100 text-green-700 dark:bg-green-900/50 dark:text-green-300',
+                    medium: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300',
+                    high: 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300',
+                };
+
+                // ---------- Тема ----------
+                function applyTheme() {
+                    document.documentElement.classList.toggle('dark', dark.value);
+                    localStorage.setItem(THEME_KEY, dark.value ? 'dark' : 'light');
+                }
+                function toggleTheme() {
+                    dark.value = !dark.value;
+                    applyTheme();
+                }
+                onMounted(applyTheme);
+
+                // ---------- API ----------
+                async function api(method, url, body) {
+                    loading.value = true;
+                    error.value = '';
+                    try {
+                        const res = await fetch(url, {
+                            method,
+                            headers: body ? { 'Content-Type': 'application/json' } : undefined,
+                            body: body ? JSON.stringify(body) : undefined,
+                        });
+                        const data = await res.json().catch(() => ({}));
+                        if (!res.ok) throw new Error(data.error || ('HTTP ' + res.status));
+                        return data;
+                    } catch (e) {
+                        error.value = 'Ошибка связи с сервером: ' + e.message;
+                        throw e;
+                    } finally {
+                        loading.value = false;
+                    }
+                }
+
+                async function loadTodos() {
+                    try { todos.value = await api('GET', API); } catch { /* ошибка уже показана */ }
+                }
+                onMounted(loadTodos);
+
+                // ---------- Дедлайны ----------
+                function daysLeft(todo) {
+                    const due = new Date(todo.due + 'T23:59:59');
+                    return Math.ceil((due - new Date()) / 86400000);
+                }
+                function dueText(todo) {
+                    if (todo.done) return 'до ' + todo.due.split('-').reverse().join('.');
+                    const left = daysLeft(todo);
+                    if (left < 0) return 'просрочено (' + Math.abs(left) + ' дн.)';
+                    if (left === 0) return 'сегодня!';
+                    if (left === 1) return 'завтра';
+                    if (left <= 3) return 'через ' + left + ' дн.';
+                    return 'до ' + todo.due.split('-').reverse().join('.');
+                }
+                function dueClass(todo) {
+                    if (todo.done) return 'bg-gray-100 text-gray-400 dark:bg-gray-700 dark:text-gray-500';
+                    const left = daysLeft(todo);
+                    if (left < 0) return 'bg-red-100 text-red-700 dark:bg-red-900/50 dark:text-red-300';
+                    if (left <= 1) return 'bg-orange-100 text-orange-700 dark:bg-orange-900/50 dark:text-orange-300';
+                    if (left <= 3) return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/50 dark:text-yellow-300';
+                    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-300';
+                }
+
+                // ---------- Фильтры / сортировка ----------
+                const visibleTodos = computed(() => {
+                    let list = todos.value.filter(t =>
+                        filter.value === 'all' ? true
+                        : filter.value === 'active' ? !t.done
+                        : t.done
+                    );
+                    if (sortBy.value === 'priority') {
+                        list = [...list].sort((a, b) =>
+                            PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority] ||
+                            (a.due || '9999').localeCompare(b.due || '9999')
+                        );
+                    } else if (sortBy.value === 'due') {
+                        list = [...list].sort((a, b) =>
+                            (a.due || '9999').localeCompare(b.due || '9999') ||
+                            PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
+                        );
+                    }
+                    return list;
+                });
+
+                const activeCount = computed(() => todos.value.filter(t => !t.done).length);
+                const hasCompleted = computed(() => todos.value.some(t => t.done));
+                const counterText = computed(() =>
+                    todos.value.length === 0
+                        ? '0 задач'
+                        : `${activeCount.value} осталось · ${todos.value.length} всего`
+                );
+
+                // ---------- Методы (все через API) ----------
+                async function addTodo() {
+                    const text = newTodo.value.trim();
+                    if (!text) return;
+                    try {
+                        const todo = await api('POST', API, {
+                            text,
+                            priority: newPriority.value,
+                            due: newDue.value || null,
+                        });
+                        todos.value.push(todo);
+                        newTodo.value = '';
+                        newDue.value = '';
+                        newPriority.value = 'medium';
+                    } catch { /* ошибка уже показана */ }
+                }
+
+                async function toggleTodo(todo) {
+                    try {
+                        const updated = await api('PATCH', `${API}/${todo.id}`, { done: !todo.done });
+                        const i = todos.value.findIndex(t => t.id === todo.id);
+                        if (i !== -1) todos.value[i] = updated;
+                    } catch { /* ошибка уже показана */ }
+                }
+
+                async function removeTodo(id) {
+                    try {
+                        await api('DELETE', `${API}/${id}`);
+                        todos.value = todos.value.filter(t => t.id !== id);
+                    } catch { /* ошибка уже показана */ }
+                }
+
+                async function clearCompleted() {
+                    try {
+                        todos.value = await api('DELETE', API);
+                    } catch { /* ошибка уже показана */ }
+                }
+
+                // ---------- Drag & Drop ----------
+                function onDragStart(todo, e) {
+                    dragId.value = todo.id;
+                    e.dataTransfer.effectAllowed = 'move';
+                    e.dataTransfer.setData('text/plain', String(todo.id));
+                }
+                async function onDrop(target) {
+                    const srcId = dragId.value;
+                    dragOverId.value = null;
+                    if (!srcId || srcId === target.id) return;
+                    const from = todos.value.findIndex(t => t.id === srcId);
+                    const to = todos.value.findIndex(t => t.id === target.id);
+                    if (from === -1 || to === -1) return;
+                    // оптимистично переставляем локально
+                    const list = [...todos.value];
+                    const [moved] = list.splice(from, 1);
+                    list.splice(to, 0, moved);
+                    todos.value = list;
+                    dragId.value = null;
+                    // и сохраняем новый порядок в БД
+                    try { await api('POST', `${API}/reorder`, { ids: list.map(t => t.id) }); }
+                    catch { await loadTodos(); }
+                }
+
+                return {
+                    todos, newTodo, newPriority, newDue, filter, sortBy, filters, dark,
+                    dragId, dragOverId, loading, error,
+                    visibleTodos, activeCount, hasCompleted, counterText,
+                    toggleTheme,
+                    priorityLabel: p => PRIORITY_LABELS[p] || p,
+                    priorityClass: p => PRIORITY_CLASSES[p] || '',
+                    dueText, dueClass,
+                    addTodo, toggleTodo, removeTodo, clearCompleted,
+                    onDragStart, onDrop,
+                };
+            },
+        }).mount('#app');
+    </script>
+</body>
+</html>

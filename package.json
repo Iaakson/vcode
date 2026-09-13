@@ -1,20 +1,22 @@
 {
   "name": "vcode",
-  "version": "1.0.0",
-  "description": "TODO List — статический сайт на Vue 3 + TailwindCSS с Node.js HTTP-сервером",
-  "main": "server.js",
+  "version": "2.0.0",
+  "description": "TODO List — Vue 3 + TailwindCSS (frontend) и Node.js backend с SQLite. Локально: нативный запуск node. Продакшен: один docker-образ.",
+  "private": true,
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "dev:backend": "node apps/backend/server.js",
+    "dev:frontend": "node apps/frontend/server.js",
+    "start": "node apps/backend/server.js",
+    "dev": "node apps/backend/server.js & node apps/frontend/server.js"
   },
   "keywords": [
     "todo",
     "vue",
     "tailwindcss",
     "node",
-    "static-server"
+    "sqlite",
+    "api"
   ],
   "author": "Iaakson",
-  "license": "MIT",
-  "private": true
+  "license": "MIT"
 }

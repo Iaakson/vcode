@@ -1,26 +1,27 @@
-# Сборка образа TODO List (Vue 3 + Tailwind через CDN, раздаётся Node.js-сервером)
-# Сборка:  docker build -t vcode-todo .
-# Запуск:  docker run -d -p 3000:3000 --name vcode-todo --restart unless-stopped vcode-todo
+# Сборка образа TODO List — один образ: backend (/api) + frontend (/)
+# БД: SQLite, файл в /data (монтируется как volume в docker-compose)
+#
+# Сборка:  docker compose up -d --build
+# Локально docker не используется — только нативный запуск node.
 
 FROM node:22-alpine
 
-# Рабочая директория в контейнере
 WORKDIR /app
 
-# Копируем зависимости и устанавливаем (зависимостей нет — package-lock не требуется)
-COPY package.json ./
+# Копируем приложение (backend + frontend, без npm-зависимостей — чистый node)
+COPY apps ./apps
 
-# Копируем исходники
-COPY index.html server.js ./
+# Каталог для БД SQLite (перезаписывается volume'ом из docker-compose)
+RUN mkdir -p /data && chown node:node /data
 
-# Приложение не имеет node_modules (чистый Node http), но на случай добавления
-# зависимостей в package.json выполняем установку
-RUN npm install --omit=dev --no-audit --no-fund || true
+# Порт, который слушает backend (SERVE_STATIC=1 — раздаёт и frontend)
+ENV PORT=3000 \
+    HOST=0.0.0.0 \
+    SERVE_STATIC=1 \
+    DB_PATH=/data/todos.db
 
-# Порт, который слушает server.js
 EXPOSE 3000
 
-# Запуск от непривилегированного пользователя
 USER node
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/backend/server.js"]

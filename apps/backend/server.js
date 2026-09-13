@@ -194,9 +194,9 @@ async function handleApi(req, res, urlPath) {
         const username = typeof body.username === 'string' ? body.username.trim() : '';
         const password = typeof body.password === 'string' ? body.password : '';
         if (!username || username.length > 32) return sendJson(res, 400, { error: 'Введите имя (до 32 символов)' });
-        if (password.length < 4) return sendJson(res, 400, { error: 'Пароль должен быть не короче 4 символов' });
+        if (password.length < 6) return sendJson(res, 400, { error: 'Пароль должен быть не короче 6 символов' });
         if (db.prepare('SELECT id FROM users WHERE username = ?').get(username)) {
-            return sendJson(res, 409, { error: 'Это имя уже занято' });
+            return sendJson(res, 400, { error: 'Это имя уже занято' });
         }
         const salt = crypto.randomBytes(16).toString('hex');
         const info = db.prepare('INSERT INTO users (username, password_hash, salt) VALUES (?, ?, ?)')
@@ -227,13 +227,13 @@ async function handleApi(req, res, urlPath) {
     // GET /api/me
     if (req.method === 'GET' && route === '/me') {
         const user = getSessionUser(req);
-        if (!user) return sendJson(res, 401, { error: 'Не авторизован' });
+        if (!user) return sendJson(res, 401, { error: 'unauthorized' });
         return sendJson(res, 200, user);
     }
 
     // --- всё дальше требует авторизации ---
     const user = getSessionUser(req);
-    if (!user) return sendJson(res, 401, { error: 'Не авторизован' });
+    if (!user) return sendJson(res, 401, { error: 'unauthorized' });
 
     // GET /api/todos
     if (req.method === 'GET' && route === '/todos') {

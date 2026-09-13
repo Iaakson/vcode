@@ -191,7 +191,7 @@
                         type="password"
                         autocomplete="current-password"
                         class="w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        placeholder="Пароль (минимум 4 символа)"
+                        placeholder="Пароль (минимум 6 символов)"
                     />
                 </div>
                 <p v-if="authError" class="text-sm text-red-500">{{ authError }}</p>
@@ -316,7 +316,7 @@
                     const username = authUsername.value.trim();
                     const password = authPassword.value;
                     if (!username) { authError.value = 'Введите имя'; return; }
-                    if (password.length < 4) { authError.value = 'Пароль должен быть не короче 4 символов'; return; }
+                    if (password.length < 6) { authError.value = 'Пароль должен быть не короче 6 символов'; return; }
                     authLoading.value = true;
                     try {
                         const res = await fetch(authMode.value === 'login' ? '/api/login' : '/api/register', {

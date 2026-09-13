@@ -7,7 +7,10 @@
     "dev:backend": "node apps/backend/server.js",
     "dev:frontend": "node apps/frontend/server.js",
     "start": "node apps/backend/server.js",
-    "dev": "node apps/backend/server.js & node apps/frontend/server.js"
+    "dev": "node apps/backend/server.js & node apps/frontend/server.js",
+    "test": "jest",
+    "test:unit": "jest --selectProjects unit",
+    "test:e2e": "jest --selectProjects e2e"
   },
   "keywords": [
     "todo",
@@ -18,5 +21,8 @@
     "api"
   ],
   "author": "Iaakson",
-  "license": "MIT"
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^30.5.1"
+  }
 }

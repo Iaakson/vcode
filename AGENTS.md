@@ -45,6 +45,9 @@ vcode/
 ├── Dockerfile              # один образ: node:22-alpine, backend(/api) + frontend(/)
 ├── docker-compose.yml      # продакшен, SQLite как volume (vcode_sqlite_data:/data)
 ├── deploy.sh               # скрипт деплоя на сервер с локального ПК
+├── jest.config.js          # тесты: unit + e2e (Jest)
+├── tests/                  # unit (tests/unit) и e2e (tests/e2e, серверы поднимаются сами на 3100/3101)
+├── docs/testing.md         # как работать с тестами (запуск и принципы создания)
 ├── AGENTS.md               # этот файл
 └── .dockerignore, .gitignore, .pi/
 ```
@@ -137,7 +140,8 @@ ssh root@31.76.41.104 "cd /opt/vcode && docker compose up -d --build"
 
 - **Скилл task-creator** — `.pi/skills/task-creator/` (SKILL.md + references/task-template.md). Готовит описание задачи к реализации: контекст, требования, критерии приёмки, затронутые файлы, план, деплой. Использовать при запросах «составь/оформи задачу», вызов — `/skill:task-creator`. `.pi` в `.gitignore` — при новых правках скилла коммитить через `git add -f .pi/skills`.
 
-- **Нет npm-зависимостей** — backend использует встроенный `node:sqlite` (Node ≥ 22.5; в docker `node:22-alpine`), `npm install` не требуется.
+- **Нет npm-зависимостей (runtime)** — backend использует встроенный `node:sqlite` (Node ≥ 22.5; в docker `node:22-alpine`). Jest — единственная dev-зависимость, только для тестов.
+- **Тесты** — Jest, `npm test` (все: unit + e2e), `npm run test:e2e` / `npm run test:unit`. После каждого функционала прогонять все тесты; принципы создания и запуска — в `docs/testing.md`. e2e сами поднимают серверы на портах 3100/3101 с чистой тестовой БД `todos.test.db`, основная БД не затрагивается.
 - **Локально docker не запускать** — только нативный запуск node (`npm run dev`). Docker используется только на бою.
 - Весь фронтенд — один файл `apps/frontend/index.html`; правки UI делаются только там, пересборка не нужна.
 - Все данные задач — через API (`/api/todos`); в localStorage хранится только тема.

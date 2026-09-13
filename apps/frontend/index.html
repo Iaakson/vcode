@@ -15,7 +15,14 @@
     <div id="app" class="w-full max-w-xl bg-white dark:bg-gray-800 rounded-2xl shadow-lg dark:shadow-black/40 p-6 transition-colors">
         <!-- Заголовок + тема -->
         <div class="flex items-center justify-between mb-6">
+            <div class="flex items-center min-w-0">
             <h1 class="text-3xl font-bold text-gray-800 dark:text-gray-100">📝 TODO List</h1>
+            <span
+                v-if="doneCount > 0"
+                title="Выполнено задач"
+                class="ml-2 px-2.5 py-1 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 text-sm font-semibold whitespace-nowrap"
+            >✓ {{ doneCount }}</span>
+            </div>
             <button
                 @click="toggleTheme"
                 :title="dark ? 'Светлая тема' : 'Тёмная тема'"
@@ -271,6 +278,7 @@
                 });
 
                 const activeCount = computed(() => todos.value.filter(t => !t.done).length);
+                const doneCount = computed(() => todos.value.filter(t => t.done).length);
                 const hasCompleted = computed(() => todos.value.some(t => t.done));
                 const counterText = computed(() =>
                     todos.value.length === 0
@@ -343,7 +351,7 @@
                 return {
                     todos, newTodo, newPriority, newDue, filter, sortBy, filters, dark,
                     dragId, dragOverId, loading, error,
-                    visibleTodos, activeCount, hasCompleted, counterText,
+                    visibleTodos, activeCount, doneCount, hasCompleted, counterText,
                     toggleTheme,
                     priorityLabel: p => PRIORITY_LABELS[p] || p,
                     priorityClass: p => PRIORITY_CLASSES[p] || '',

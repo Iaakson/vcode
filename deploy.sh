@@ -60,7 +60,7 @@ sleep 3
 # ---------- 5. Проверка ----------
 echo "🔍 Проверка приложения..."
 HOST_ONLY="${TARGET##*@}"
-CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://$HOST_ONLY:$LOCAL_PORT/api/todos" || echo "000")
+CODE=$(curl -s -o /dev/null -w '%{http_code}' --max-time 15 "http://$HOST_ONLY:$LOCAL_PORT/api/health" || echo "000")
 if [[ "$CODE" == "200" ]]; then
     echo "✅ Деплой успешен! Приложение отвечает: http://$HOST_ONLY:$LOCAL_PORT (HTTP $CODE)"
     ssh "${SSH_OPTS[@]}" "$TARGET" "docker ps --filter name=vcode-todo --format '{{.Names}}: {{.Status}}'" || true

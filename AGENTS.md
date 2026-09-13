@@ -129,6 +129,8 @@ ssh root@31.76.41.104 "cd /opt/vcode && docker compose up -d --build"
 
 ## Заметки для агентов
 
+- **Скилл task-creator** — `.pi/skills/task-creator/` (SKILL.md + references/task-template.md). Готовит описание задачи к реализации: контекст, требования, критерии приёмки, затронутые файлы, план, деплой. Использовать при запросах «составь/оформи задачу», вызов — `/skill:task-creator`. `.pi` в `.gitignore` — при новых правках скилла коммитить через `git add -f .pi/skills`.
+
 - **Нет npm-зависимостей** — backend использует встроенный `node:sqlite` (Node ≥ 22.5; в docker `node:22-alpine`), `npm install` не требуется.
 - **Локально docker не запускать** — только нативный запуск node (`npm run dev`). Docker используется только на бою.
 - Весь фронтенд — один файл `apps/frontend/index.html`; правки UI делаются только там, пересборка не нужна.
